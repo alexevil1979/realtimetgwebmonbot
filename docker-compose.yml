@@ -1,0 +1,28 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      SCHEDULER_ENABLED: "false"
+    env_file:
+      - .env
+    volumes:
+      - uptime_data:/app/data
+    restart: unless-stopped
+
+  worker:
+    build: .
+    command: ["python", "-m", "app.worker"]
+    environment:
+      SCHEDULER_ENABLED: "true"
+    env_file:
+      - .env
+    volumes:
+      - uptime_data:/app/data
+    restart: unless-stopped
+    depends_on:
+      - web
+
+volumes:
+  uptime_data:

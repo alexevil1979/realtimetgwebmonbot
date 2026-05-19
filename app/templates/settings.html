@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Настройки — Uptime Monitor{% endblock %}
+{% block nav %}
+<nav class="navbar navbar-expand-lg mb-3">
+  <div class="container">
+    <a class="navbar-brand" href="/">← Дашборд</a>
+    <button type="button" class="btn btn-sm btn-outline-secondary" id="theme-toggle">🌙</button>
+  </div>
+</nav>
+{% endblock %}
+{% block content %}
+<h1 class="h4 mb-4">Настройки</h1>
+
+{% if saved %}
+<div class="alert alert-success">Настройки сохранены</div>
+{% endif %}
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <form method="post" action="/settings">
+      <h2 class="h6 text-muted mb-3">Telegram уведомления</h2>
+      <div class="mb-3">
+        <label class="form-label" for="telegram_bot_token">Bot Token</label>
+        <input type="text" class="form-control" id="telegram_bot_token" name="telegram_bot_token"
+               value="{{ settings.telegram_bot_token }}" autocomplete="off"
+               placeholder="123456:ABC-DEF...">
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="telegram_chat_id">Chat ID</label>
+        <input type="text" class="form-control" id="telegram_chat_id" name="telegram_chat_id"
+               value="{{ settings.telegram_chat_id }}" placeholder="-1001234567890">
+      </div>
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" id="notify_on_up" name="notify_on_up"
+               {% if settings.notify_on_up in ['true', '1', 'yes'] %}checked{% endif %}>
+        <label class="form-check-label" for="notify_on_up">Уведомлять при восстановлении (Up)</label>
+      </div>
+      <div class="mb-4">
+        <label class="form-label" for="notify_cooldown_minutes">
+          Минимальный интервал между уведомлениями (мин)
+        </label>
+        <input type="number" class="form-control" id="notify_cooldown_minutes"
+               name="notify_cooldown_minutes" min="1" max="1440"
+               value="{{ settings.notify_cooldown_minutes }}">
+        <div class="form-text text-muted">Защита от спама для одного сервера</div>
+      </div>
+      <button type="submit" class="btn btn-primary">Сохранить</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

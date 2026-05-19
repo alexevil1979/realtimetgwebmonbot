@@ -1,0 +1,92 @@
+:root {
+  --bg: #f8f9fa;
+  --card: #ffffff;
+  --text: #212529;
+  --muted: #6c757d;
+  --border: #dee2e6;
+  --nav-bg: #ffffff;
+}
+
+[data-theme="dark"] {
+  --bg: #0d1117;
+  --card: #161b22;
+  --text: #e6edf3;
+  --muted: #8b949e;
+  --border: #30363d;
+  --nav-bg: #161b22;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.navbar {
+  background: var(--nav-bg) !important;
+  border-bottom: 1px solid var(--border);
+}
+
+.card {
+  background: var(--card);
+  border-color: var(--border);
+}
+
+.table {
+  color: var(--text);
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--text);
+  --bs-table-border-color: var(--border);
+}
+
+.text-muted {
+  color: var(--muted) !important;
+}
+
+.form-control,
+.form-select {
+  background: var(--card);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.form-control:focus,
+.form-select:focus {
+  background: var(--card);
+  color: var(--text);
+  border-color: #0d6efd;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-up {
+  background: #198754;
+  box-shadow: 0 0 6px #19875488;
+}
+
+.status-down {
+  background: #dc3545;
+  box-shadow: 0 0 6px #dc354588;
+}
+
+.status-unknown {
+  background: #6c757d;
+}
+
+.url-cell {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .url-cell {
+    max-width: 140px;
+  }
+}
