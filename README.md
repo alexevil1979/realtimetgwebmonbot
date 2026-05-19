@@ -33,7 +33,7 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-По умолчанию UI на **http://127.0.0.1:9080** (не занимает 80/443 — совместимо с [Hiddify Manager](https://hiddify.com/manager/)). См. [DEPLOY_VPS.md](DEPLOY_VPS.md).
+По умолчанию UI на **http://IP:9080/** (не занимает 80/443 — совместимо с [Hiddify Manager](https://hiddify.com/manager/)). См. [DEPLOY_VPS.md](DEPLOY_VPS.md).
 
 **Рядом с Hiddify (один контейнер, мало RAM):**
 

@@ -12,7 +12,7 @@ Hiddify обычно занимает **80**, **443** и свой nginx/Caddy. �
 |-----|---------|----------------|
 | 80 / 443 | Панель, прокси | **Не используем** |
 | Docker | Уже установлен | Тот же Docker, отдельный `docker compose` |
-| Доступ к UI | Домен в панели | `127.0.0.1:9080` + поддомен в Hiddify |
+| Доступ к UI | Домен в панели | `http://IP:9080/` (порт 9080, не 80/443) |
 
 ### Быстрый старт (рядом с Hiddify)
 
@@ -27,34 +27,34 @@ nano .env   # SECRET_KEY, ADMIN_PASSWORD
 docker compose -f docker-compose.single.yml up -d --build
 ```
 
-Проверка на сервере:
+Проверка:
 
 ```bash
 curl -s http://127.0.0.1:9080/health
 # {"status":"ok"}
 ```
 
-### Доступ снаружи (рекомендуется)
+Откройте в браузере: **http://203.161.39.40:9080/** (подставьте IP вашего VPS).
 
-**Вариант A — поддомен через Hiddify (лучше)**  
-1. DNS: `monitor.ваш-домен.ru` → IP VPS  
-2. В [Hiddify](https://hiddify.com/manager/configuration-and-advanced-settings/How-to-configure-Hiddify-panel-properly/) добавьте домен/поддомен с проксированием на `http://127.0.0.1:9080`  
-3. Включите SSL в панели Hiddify — получите HTTPS без второго nginx  
+Firewall (если включён ufw):
 
-**Вариант B — отдельный порт (только для себя)**  
-В `.env` на сервере:
+```bash
+sudo ufw allow 9080/tcp
+sudo ufw status
+```
+
+В `.env` уже по умолчанию:
 
 ```env
 UPTIME_BIND=0.0.0.0
 UPTIME_PORT=9080
 ```
 
-```bash
-docker compose -f docker-compose.single.yml up -d --build
-sudo ufw allow 9080/tcp    # не открывайте 80/443 лишний раз
-```
+### Опционально: HTTPS через поддомен Hiddify
 
-Открывать: `http://IP:9080` (без HTTPS — хуже для пароля; лучше вариант A).
+1. DNS: `monitor.ваш-домен.ru` → IP VPS  
+2. В [Hiddify](https://hiddify.com/manager/configuration-and-advanced-settings/How-to-configure-Hiddify-panel-properly/) — прокси на `http://127.0.0.1:9080`  
+3. Тогда снаружи будет HTTPS, а `:9080` можно не открывать в ufw
 
 ### Чего не делать на VPS с Hiddify
 
@@ -124,7 +124,7 @@ uvicorn app.main:app --host 127.0.0.1 --port 9080
 
 | Переменная | По умолчанию | Описание |
 |------------|--------------|----------|
-| `UPTIME_BIND` | `127.0.0.1` | Интерфейс (безопасно с Hiddify) |
+| `UPTIME_BIND` | `0.0.0.0` | Слушать на всех интерфейсах (`http://IP:9080/`) |
 | `UPTIME_PORT` | `9080` | Внешний порт хоста |
 
 Задаются в `.env` в корне проекта или в shell перед `docker compose`.
