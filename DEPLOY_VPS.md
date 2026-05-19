@@ -2,128 +2,129 @@
 
 Репозиторий: https://github.com/alexevil1979/realtimetgwebmonbot
 
-## 1. Подготовка сервера
+---
 
-```bash
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y git curl
+## Уже стоит Hiddify Manager
 
-# Docker
-curl -fsSL https://get.docker.com | sudo sh
-sudo usermod -aG docker $USER
-newgrp docker
-```
+Hiddify обычно занимает **80**, **443** и свой nginx/Caddy. Монитор **не трогает** эти порты.
 
-## 2. Клонирование и настройка
+| Что | Hiddify | Uptime Monitor |
+|-----|---------|----------------|
+| 80 / 443 | Панель, прокси | **Не используем** |
+| Docker | Уже установлен | Тот же Docker, отдельный `docker compose` |
+| Доступ к UI | Домен в панели | `127.0.0.1:9080` + поддомен в Hiddify |
+
+### Быстрый старт (рядом с Hiddify)
 
 ```bash
 cd ~
 git clone https://github.com/alexevil1979/realtimetgwebmonbot.git
 cd realtimetgwebmonbot
+cp .env.example .env
+nano .env   # SECRET_KEY, ADMIN_PASSWORD
 
+# Один контейнер — меньше нагрузка на VPS
+docker compose -f docker-compose.single.yml up -d --build
+```
+
+Проверка на сервере:
+
+```bash
+curl -s http://127.0.0.1:9080/health
+# {"status":"ok"}
+```
+
+### Доступ снаружи (рекомендуется)
+
+**Вариант A — поддомен через Hiddify (лучше)**  
+1. DNS: `monitor.ваш-домен.ru` → IP VPS  
+2. В [Hiddify](https://hiddify.com/manager/configuration-and-advanced-settings/How-to-configure-Hiddify-panel-properly/) добавьте домен/поддомен с проксированием на `http://127.0.0.1:9080`  
+3. Включите SSL в панели Hiddify — получите HTTPS без второго nginx  
+
+**Вариант B — отдельный порт (только для себя)**  
+В `.env` на сервере:
+
+```env
+UPTIME_BIND=0.0.0.0
+UPTIME_PORT=9080
+```
+
+```bash
+docker compose -f docker-compose.single.yml up -d --build
+sudo ufw allow 9080/tcp    # не открывайте 80/443 лишний раз
+```
+
+Открывать: `http://IP:9080` (без HTTPS — хуже для пароля; лучше вариант A).
+
+### Чего не делать на VPS с Hiddify
+
+- Не ставить второй системный **nginx** / не занимать **80/443**
+- Не запускать `curl get.docker.com`, если Docker уже есть
+- Не менять конфиги Hiddify вручную без необходимости
+- Не открывать в ufw порты, которые уже обслуживает Hiddify
+
+### Логи и обновление
+
+```bash
+cd ~/realtimetgwebmonbot
+docker compose -f docker-compose.single.yml logs -f
+git pull
+docker compose -f docker-compose.single.yml up -d --build
+```
+
+Два контейнера (web + worker), если нужна разгрузка:
+
+```bash
+docker compose up -d --build
+```
+
+---
+
+## Чистый VPS (без Hiddify)
+
+### 1. Подготовка
+
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y git curl
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+### 2. Клонирование
+
+```bash
+git clone https://github.com/alexevil1979/realtimetgwebmonbot.git
+cd realtimetgwebmonbot
 cp .env.example .env
 nano .env
 ```
 
-Обязательно измените в `.env`:
-
-```env
-SECRET_KEY=длинная-случайная-строка
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=надёжный-пароль
-```
-
-## 3. Запуск (Docker, рекомендуется)
+### 3. Запуск
 
 ```bash
 docker compose up -d --build
 ```
 
-- Веб-интерфейс: `http://IP_СЕРВЕРА:8000`
-- `web` — UI, `worker` — проверки серверов
+По умолчанию UI: `http://127.0.0.1:9080` (или задайте `UPTIME_BIND=0.0.0.0` в `.env`).
 
-Только один контейнер (UI + планировщик):
-
-```bash
-docker compose up -d --build web
-```
-
-Логи:
-
-```bash
-docker compose logs -f
-```
-
-## 4. Запуск без Docker (Python)
+### 4. Python без Docker
 
 ```bash
 sudo apt install -y python3.11 python3.11-venv
-cd ~/realtimetgwebmonbot
-python3.11 -m venv .venv
-source .venv/bin/activate
+python3.11 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env && nano .env
-mkdir -p data
-
-# systemd (фон)
-sudo tee /etc/systemd/system/uptime-monitor.service << 'EOF'
-[Unit]
-Description=Uptime Monitor
-After=network.target
-
-[Service]
-Type=simple
-User=ubuntu
-WorkingDirectory=/home/ubuntu/realtimetgwebmonbot
-Environment=PATH=/home/ubuntu/realtimetgwebmonbot/.venv/bin
-ExecStart=/home/ubuntu/realtimetgwebmonbot/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable --now uptime-monitor
+uvicorn app.main:app --host 127.0.0.1 --port 9080
 ```
 
-## 5. Firewall и Nginx (опционально)
+---
 
-```bash
-sudo ufw allow OpenSSH
-sudo ufw allow 8000/tcp
-sudo ufw enable
-```
+## Переменные Docker
 
-За reverse-proxy (HTTPS):
+| Переменная | По умолчанию | Описание |
+|------------|--------------|----------|
+| `UPTIME_BIND` | `127.0.0.1` | Интерфейс (безопасно с Hiddify) |
+| `UPTIME_PORT` | `9080` | Внешний порт хоста |
 
-```bash
-sudo apt install -y nginx certbot python3-certbot-nginx
-sudo nano /etc/nginx/sites-available/uptime
-```
-
-```nginx
-server {
-    listen 80;
-    server_name monitor.example.com;
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
-
-```bash
-sudo ln -s /etc/nginx/sites-available/uptime /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d monitor.example.com
-```
-
-## 6. Обновление
-
-```bash
-cd ~/realtimetgwebmonbot
-git pull
-docker compose up -d --build
-```
+Задаются в `.env` в корне проекта или в shell перед `docker compose`.

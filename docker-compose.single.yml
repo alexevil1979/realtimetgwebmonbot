@@ -1,0 +1,21 @@
+# Один контейнер (web + scheduler) — меньше RAM, удобно рядом с Hiddify на слабом VPS.
+# Запуск: docker compose -f docker-compose.single.yml up -d --build
+services:
+  web:
+    build: .
+    ports:
+      - "${UPTIME_BIND:-127.0.0.1}:${UPTIME_PORT:-9080}:8000"
+    environment:
+      SCHEDULER_ENABLED: "true"
+    env_file:
+      - .env
+    volumes:
+      - uptime_data:/app/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+volumes:
+  uptime_data:

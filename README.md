@@ -30,13 +30,20 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 ```bash
 cp .env.example .env
-docker compose up -d
+docker compose up -d --build
 ```
 
-- `web` — веб + планировщик в одном процессе
-- `worker` — отдельный процесс только для проверок (при масштабировании отключите scheduler в web или используйте только worker)
+По умолчанию UI на **http://127.0.0.1:9080** (не занимает 80/443 — совместимо с [Hiddify Manager](https://hiddify.com/manager/)). См. [DEPLOY_VPS.md](DEPLOY_VPS.md).
 
-Для одного контейнера достаточно сервиса `web`:
+**Рядом с Hiddify (один контейнер, мало RAM):**
+
+```bash
+docker compose -f docker-compose.single.yml up -d --build
+```
+
+- `web` + `worker` — два контейнера; `docker-compose.single.yml` — всё в одном
+
+Для одного контейнера через основной compose:
 
 ```bash
 docker compose up -d web

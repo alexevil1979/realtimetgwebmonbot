@@ -1,8 +1,10 @@
+# Порты: не занимаем 80/443 (их использует Hiddify и др.).
+# По умолчанию только localhost:9080 — доступ через поддомен в панели Hiddify.
 services:
   web:
     build: .
     ports:
-      - "8000:8000"
+      - "${UPTIME_BIND:-127.0.0.1}:${UPTIME_PORT:-9080}:8000"
     environment:
       SCHEDULER_ENABLED: "false"
     env_file:
@@ -10,6 +12,10 @@ services:
     volumes:
       - uptime_data:/app/data
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 192M
 
   worker:
     build: .
@@ -23,6 +29,10 @@ services:
     restart: unless-stopped
     depends_on:
       - web
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
 volumes:
   uptime_data:
