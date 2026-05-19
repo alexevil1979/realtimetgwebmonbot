@@ -6,6 +6,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.dependencies import login_redirect, optional_user
 from app.models import AppSetting, User
+from app.services.telegram import send_telegram_raw
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +23,34 @@ async def settings_page(request: Request, user: User | None = Depends(optional_u
     return templates.TemplateResponse(
         request,
         "settings.html",
-        {"request": request, "user": user, "settings": settings, "saved": False},
+        {
+            "request": request,
+            "user": user,
+            "settings": settings,
+            "saved": False,
+            "test_ok": None,
+            "test_error": None,
+        },
     )
+
+
+def _settings_context(
+    request: Request,
+    user: User,
+    settings: dict,
+    *,
+    saved: bool = False,
+    test_ok: str | None = None,
+    test_error: str | None = None,
+) -> dict:
+    return {
+        "request": request,
+        "user": user,
+        "settings": settings,
+        "saved": saved,
+        "test_ok": test_ok,
+        "test_error": test_error,
+    }
 
 
 @router.post("")
@@ -51,5 +78,41 @@ async def settings_save(
     return templates.TemplateResponse(
         request,
         "settings.html",
-        {"request": request, "user": user, "settings": settings, "saved": True},
+        _settings_context(request, user, settings, saved=True),
+    )
+
+
+@router.post("/test", response_class=HTMLResponse)
+async def settings_test_telegram(
+    request: Request,
+    user: User | None = Depends(optional_user),
+    telegram_bot_token: str = Form(""),
+    telegram_chat_id: str = Form(""),
+):
+    if not user:
+        return login_redirect()
+
+    ok, message = await send_telegram_raw(
+        telegram_bot_token,
+        telegram_chat_id,
+        "✅ <b>Uptime Monitor</b>\nТестовое уведомление — всё работает.",
+    )
+
+    settings = await AppSetting.get_all()
+    settings["telegram_bot_token"] = telegram_bot_token.strip()
+    settings["telegram_chat_id"] = telegram_chat_id.strip()
+
+    if ok:
+        logger.info("Telegram test OK for user %s", user.username)
+        return templates.TemplateResponse(
+            request,
+            "settings.html",
+            _settings_context(request, user, settings, test_ok=message),
+        )
+
+    logger.warning("Telegram test failed for user %s: %s", user.username, message)
+    return templates.TemplateResponse(
+        request,
+        "settings.html",
+        _settings_context(request, user, settings, test_error=message),
     )

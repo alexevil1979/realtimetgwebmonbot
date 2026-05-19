@@ -14,13 +14,11 @@ async def _get_settings() -> dict[str, str]:
     return await AppSetting.get_all()
 
 
-async def send_telegram(text: str) -> bool:
-    settings = await _get_settings()
-    token = settings.get("telegram_bot_token", "").strip()
-    chat_id = settings.get("telegram_chat_id", "").strip()
+async def send_telegram_raw(token: str, chat_id: str, text: str) -> tuple[bool, str]:
+    token = token.strip()
+    chat_id = chat_id.strip()
     if not token or not chat_id:
-        logger.debug("Telegram not configured, skip notification")
-        return False
+        return False, "Укажите Bot Token и Chat ID"
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     try:
@@ -30,12 +28,27 @@ async def send_telegram(text: str) -> bool:
                 json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
             )
             if resp.status_code != 200:
-                logger.warning("Telegram API error: %s %s", resp.status_code, resp.text[:200])
-                return False
-            return True
+                detail = resp.text[:300]
+                try:
+                    detail = resp.json().get("description", detail)
+                except Exception:
+                    pass
+                logger.warning("Telegram API error: %s %s", resp.status_code, detail)
+                return False, str(detail)
+            return True, "Сообщение отправлено в Telegram"
     except Exception as exc:
         logger.exception("Failed to send Telegram message: %s", exc)
-        return False
+        return False, str(exc)
+
+
+async def send_telegram(text: str) -> bool:
+    settings = await _get_settings()
+    token = settings.get("telegram_bot_token", "")
+    chat_id = settings.get("telegram_chat_id", "")
+    ok, _ = await send_telegram_raw(token, chat_id, text)
+    if not ok and not token.strip():
+        logger.debug("Telegram not configured, skip notification")
+    return ok
 
 
 def _cooldown_passed(server_id: int, cooldown_minutes: int) -> bool:

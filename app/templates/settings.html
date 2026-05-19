@@ -14,6 +14,12 @@
 {% if saved %}
 <div class="alert alert-success">Настройки сохранены</div>
 {% endif %}
+{% if test_ok %}
+<div class="alert alert-success">{{ test_ok }}</div>
+{% endif %}
+{% if test_error %}
+<div class="alert alert-danger">{{ test_error }}</div>
+{% endif %}
 
 <div class="card shadow-sm">
   <div class="card-body">
@@ -44,7 +50,15 @@
                value="{{ settings.notify_cooldown_minutes }}">
         <div class="form-text text-muted">Защита от спама для одного сервера</div>
       </div>
-      <button type="submit" class="btn btn-primary">Сохранить</button>
+      <div class="d-flex flex-wrap gap-2">
+        <button type="submit" class="btn btn-primary">Сохранить</button>
+        <button type="submit" class="btn btn-outline-secondary" formaction="/settings/test" formmethod="post">
+          Тест Telegram
+        </button>
+      </div>
+      <p class="form-text text-muted mt-2 mb-0">
+        «Тест» отправит сообщение с текущими Token и Chat ID (сохранять не обязательно).
+      </p>
     </form>
   </div>
 </div>
