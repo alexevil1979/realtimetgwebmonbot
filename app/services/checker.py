@@ -6,7 +6,7 @@ import httpx
 
 from app.config import CHECK_HISTORY_LIMIT, HTTP_OK_MAX, HTTP_OK_MIN
 from app.models import Check, Server
-from app.services.telegram import notify_status_change
+from app.services.telegram import evaluate_telegram_alerts
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,6 @@ async def run_check(server_id: int) -> None:
     if not server or not server.enabled:
         return
 
-    old_status = server.last_status
     is_up = False
     status_code: int | None = None
     response_ms: int | None = None
@@ -54,6 +53,7 @@ async def run_check(server_id: int) -> None:
         error_message=error_message,
     )
 
+    prev_status = server.last_status
     server.last_status = new_status
     server.last_checked_at = now
     server.last_response_ms = response_ms
@@ -61,15 +61,16 @@ async def run_check(server_id: int) -> None:
 
     await _trim_history(server.id)
 
-    if old_status != new_status:
+    if prev_status != new_status:
         logger.info(
             "Server %s (%s) status: %s -> %s",
             server.id,
             server.name,
-            old_status,
+            prev_status,
             new_status,
         )
-        await notify_status_change(server, old_status, new_status, error_message)
+
+    await evaluate_telegram_alerts(server, is_up, error_message, now)
 
 
 async def _trim_history(server_id: int) -> None:

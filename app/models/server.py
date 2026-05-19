@@ -12,6 +12,8 @@ class Server(Model):
     last_status = fields.CharField(max_length=16, null=True)  # up | down | unknown
     last_checked_at = fields.DatetimeField(null=True)
     last_response_ms = fields.IntField(null=True)
+    down_since = fields.DatetimeField(null=True)
+    alert_down_sent = fields.BooleanField(default=False)
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
 

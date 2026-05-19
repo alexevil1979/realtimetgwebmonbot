@@ -60,6 +60,7 @@ async def settings_save(
     telegram_bot_token: str = Form(""),
     telegram_chat_id: str = Form(""),
     notify_on_up: str | None = Form(None),
+    notify_down_after_minutes: int = Form(15),
     notify_cooldown_minutes: int = Form(15),
 ):
     if not user:
@@ -68,6 +69,10 @@ async def settings_save(
     await AppSetting.set("telegram_bot_token", telegram_bot_token.strip())
     await AppSetting.set("telegram_chat_id", telegram_chat_id.strip())
     await AppSetting.set("notify_on_up", "true" if notify_on_up == "on" else "false")
+    await AppSetting.set(
+        "notify_down_after_minutes",
+        str(max(1, min(notify_down_after_minutes, 1440))),
+    )
     await AppSetting.set(
         "notify_cooldown_minutes",
         str(max(1, min(notify_cooldown_minutes, 1440))),

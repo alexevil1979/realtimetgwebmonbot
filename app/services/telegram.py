@@ -14,6 +14,14 @@ async def _get_settings() -> dict[str, str]:
     return await AppSetting.get_all()
 
 
+def _aware(dt: datetime | None) -> datetime | None:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 async def send_telegram_raw(token: str, chat_id: str, text: str) -> tuple[bool, str]:
     token = token.strip()
     chat_id = chat_id.strip()
@@ -58,41 +66,84 @@ def _cooldown_passed(server_id: int, cooldown_minutes: int) -> bool:
     return datetime.now(timezone.utc) - last >= timedelta(minutes=cooldown_minutes)
 
 
-async def notify_status_change(
+async def _send_down_alert(
     server: Server,
-    old_status: str | None,
-    new_status: str,
-    error_message: str | None = None,
+    error_message: str | None,
+    down_minutes: int,
 ) -> None:
+    text = (
+        f"🔴 <b>DOWN</b>: {server.name}\n"
+        f"URL: {server.url}\n"
+        f"Недоступен более {down_minutes} мин\n"
+        f"{error_message or 'Проверка не прошла'}"
+    )
+    if await send_telegram(text):
+        _last_notify[server.id] = datetime.now(timezone.utc)
+        logger.info("Telegram DOWN alert for server %s (%s min)", server.id, down_minutes)
+
+
+async def _send_up_alert(server: Server) -> None:
+    ms = server.last_response_ms
+    ms_str = f"{ms} ms" if ms is not None else "—"
+    text = (
+        f"🟢 <b>UP</b>: {server.name}\n"
+        f"URL: {server.url}\n"
+        f"Снова доступен, отклик: {ms_str}"
+    )
+    if await send_telegram(text):
+        _last_notify[server.id] = datetime.now(timezone.utc)
+        logger.info("Telegram UP alert for server %s", server.id)
+
+
+async def evaluate_telegram_alerts(
+    server: Server,
+    is_up: bool,
+    error_message: str | None,
+    checked_at: datetime,
+) -> None:
+    """DOWN — только после N минут подряд без ответа. UP — после восстановления."""
     settings = await _get_settings()
+    down_after = int(settings.get("notify_down_after_minutes", "15") or "15")
     cooldown = int(settings.get("notify_cooldown_minutes", "15") or "15")
     notify_on_up = settings.get("notify_on_up", "true").lower() in ("1", "true", "yes")
 
-    if new_status == old_status:
+    now = _aware(checked_at) or datetime.now(timezone.utc)
+
+    if is_up:
+        was_alerted = server.alert_down_sent
+        server.down_since = None
+        server.alert_down_sent = False
+        await server.save(update_fields=["down_since", "alert_down_sent"])
+
+        if was_alerted and notify_on_up and _cooldown_passed(server.id, cooldown):
+            await _send_up_alert(server)
         return
 
-    if new_status == "up" and not notify_on_up:
+    if server.down_since is None:
+        server.down_since = now
+        await server.save(update_fields=["down_since"])
+
+    down_since = _aware(server.down_since)
+    if down_since is None:
+        return
+
+    elapsed_min = int((now - down_since).total_seconds() // 60)
+    if elapsed_min < down_after:
+        logger.debug(
+            "Server %s down %s min, alert after %s min",
+            server.id,
+            elapsed_min,
+            down_after,
+        )
+        return
+
+    if server.alert_down_sent:
         return
 
     if not _cooldown_passed(server.id, cooldown):
         logger.info("Telegram cooldown active for server %s", server.id)
         return
 
-    if new_status == "down":
-        text = (
-            f"🔴 <b>DOWN</b>: {server.name}\n"
-            f"URL: {server.url}\n"
-            f"{error_message or 'Check failed'}"
-        )
-    else:
-        ms = server.last_response_ms
-        ms_str = f"{ms} ms" if ms is not None else "—"
-        text = (
-            f"🟢 <b>UP</b>: {server.name}\n"
-            f"URL: {server.url}\n"
-            f"Response: {ms_str}"
-        )
-
-    if await send_telegram(text):
-        _last_notify[server.id] = datetime.now(timezone.utc)
-        logger.info("Telegram notification sent for server %s (%s)", server.id, new_status)
+    await _send_down_alert(server, error_message, elapsed_min)
+    server.alert_down_sent = True
+    await server.save(update_fields=["alert_down_sent"])

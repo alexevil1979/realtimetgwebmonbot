@@ -5,6 +5,7 @@ DEFAULTS = {
     "telegram_bot_token": "",
     "telegram_chat_id": "",
     "notify_on_up": "true",
+    "notify_down_after_minutes": "15",
     "notify_cooldown_minutes": "15",
 }
 
