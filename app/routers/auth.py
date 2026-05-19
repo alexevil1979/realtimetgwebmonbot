@@ -2,15 +2,15 @@ import logging
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 
 from app.config import SESSION_COOKIE, SESSION_MAX_AGE
+from app.i18n import get_locale, translate
 from app.services.auth import authenticate, create_session_token, get_current_user
+from app.templating import template_context, templates
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["auth"])
-templates = Jinja2Templates(directory="app/templates")
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -18,10 +18,11 @@ async def login_page(request: Request):
     user = await get_current_user(request)
     if user:
         return RedirectResponse("/", status_code=303)
+    lang = get_locale(request)
     return templates.TemplateResponse(
         request,
         "login.html",
-        {"request": request, "error": None},
+        template_context(request, error=None),
     )
 
 
@@ -31,13 +32,17 @@ async def login_submit(
     username: str = Form(...),
     password: str = Form(...),
 ):
+    lang = get_locale(request)
     user = await authenticate(username.strip(), password)
     if not user:
         logger.warning("Failed login attempt for user: %s", username)
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"request": request, "error": "Неверный логин или пароль"},
+            template_context(
+                request,
+                error=translate("error.login_failed", lang),
+            ),
             status_code=401,
         )
 

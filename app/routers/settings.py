@@ -1,17 +1,17 @@
 import logging
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
 
 from app.dependencies import login_redirect, optional_user
+from app.i18n import get_locale, translate
 from app.models import AppSetting, User
 from app.services.telegram import send_telegram_raw
+from app.templating import template_context, templates
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/settings", tags=["settings"])
-templates = Jinja2Templates(directory="app/templates")
 
 
 @router.get("", response_class=HTMLResponse)
@@ -23,34 +23,15 @@ async def settings_page(request: Request, user: User | None = Depends(optional_u
     return templates.TemplateResponse(
         request,
         "settings.html",
-        {
-            "request": request,
-            "user": user,
-            "settings": settings,
-            "saved": False,
-            "test_ok": None,
-            "test_error": None,
-        },
+        template_context(
+            request,
+            user=user,
+            settings=settings,
+            saved=False,
+            test_ok=None,
+            test_error=None,
+        ),
     )
-
-
-def _settings_context(
-    request: Request,
-    user: User,
-    settings: dict,
-    *,
-    saved: bool = False,
-    test_ok: str | None = None,
-    test_error: str | None = None,
-) -> dict:
-    return {
-        "request": request,
-        "user": user,
-        "settings": settings,
-        "saved": saved,
-        "test_ok": test_ok,
-        "test_error": test_error,
-    }
 
 
 @router.post("")
@@ -77,13 +58,15 @@ async def settings_save(
         "notify_cooldown_minutes",
         str(max(1, min(notify_cooldown_minutes, 1440))),
     )
+    lang = get_locale(request)
+    await AppSetting.set("ui_language", lang)
 
     logger.info("Settings updated by %s", user.username)
     settings = await AppSetting.get_all()
     return templates.TemplateResponse(
         request,
         "settings.html",
-        _settings_context(request, user, settings, saved=True),
+        template_context(request, user=user, settings=settings, saved=True),
     )
 
 
@@ -97,10 +80,11 @@ async def settings_test_telegram(
     if not user:
         return login_redirect()
 
+    lang = get_locale(request)
     ok, message = await send_telegram_raw(
         telegram_bot_token,
         telegram_chat_id,
-        "✅ <b>Uptime Monitor</b>\nТестовое уведомление — всё работает.",
+        translate("telegram.test_body", lang),
     )
 
     settings = await AppSetting.get_all()
@@ -112,12 +96,12 @@ async def settings_test_telegram(
         return templates.TemplateResponse(
             request,
             "settings.html",
-            _settings_context(request, user, settings, test_ok=message),
+            template_context(request, user=user, settings=settings, test_ok=message),
         )
 
     logger.warning("Telegram test failed for user %s: %s", user.username, message)
     return templates.TemplateResponse(
         request,
         "settings.html",
-        _settings_context(request, user, settings, test_error=message),
+        template_context(request, user=user, settings=settings, test_error=message),
     )

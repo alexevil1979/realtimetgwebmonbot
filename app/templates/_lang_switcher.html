@@ -1,0 +1,8 @@
+<div class="btn-group btn-group-sm" role="group" aria-label="Language">
+  {% for code in supported_langs %}
+  <a href="/lang/{{ code }}?next={{ request.url.path }}"
+     class="btn btn-outline-secondary{% if lang == code %} active{% endif %}">
+    {{ t('lang.' + code) }}
+  </a>
+  {% endfor %}
+</div>

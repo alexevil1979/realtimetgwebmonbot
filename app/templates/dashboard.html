@@ -1,15 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Дашборд — Uptime Monitor{% endblock %}
+{% block title %}{{ t('dashboard.title') }} — {{ t('app.name') }}{% endblock %}
 {% block nav %}
 <nav class="navbar navbar-expand-lg mb-3">
   <div class="container">
-    <a class="navbar-brand fw-semibold" href="/">Uptime Monitor</a>
-    <div class="d-flex align-items-center gap-2">
-      <a href="/servers/new" class="btn btn-sm btn-primary">+ Сервер</a>
-      <a href="/settings" class="btn btn-sm btn-outline-secondary">Настройки</a>
-      <button type="button" class="btn btn-sm btn-outline-secondary" id="theme-toggle" title="Тема">🌙</button>
+    <a class="navbar-brand fw-semibold" href="/">{{ t('app.name') }}</a>
+    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+      {% include "_lang_switcher.html" %}
+      <a href="/servers/new" class="btn btn-sm btn-primary">{{ t('nav.add_server') }}</a>
+      <a href="/settings" class="btn btn-sm btn-outline-secondary">{{ t('nav.settings') }}</a>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="theme-toggle" title="{{ t('nav.theme') }}">🌙</button>
       <form method="post" action="/logout" class="d-inline">
-        <button type="submit" class="btn btn-sm btn-outline-danger">Выход</button>
+        <button type="submit" class="btn btn-sm btn-outline-danger">{{ t('nav.logout') }}</button>
       </form>
     </div>
   </div>
@@ -17,15 +18,15 @@
 {% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h4 mb-0">Мониторинг серверов</h1>
+  <h1 class="h4 mb-0">{{ t('dashboard.title') }}</h1>
   <span class="text-muted small">{{ user.username }}</span>
 </div>
 
 {% if not items %}
 <div class="card">
   <div class="card-body text-center text-muted py-5">
-    <p class="mb-3">Серверы ещё не добавлены</p>
-    <a href="/servers/new" class="btn btn-primary">Добавить первый сервер</a>
+    <p class="mb-3">{{ t('dashboard.empty') }}</p>
+    <a href="/servers/new" class="btn btn-primary">{{ t('dashboard.add_first') }}</a>
   </div>
 </div>
 {% else %}
@@ -35,11 +36,11 @@
       <thead>
         <tr>
           <th></th>
-          <th>Сервер</th>
-          <th class="d-none d-md-table-cell">Последняя проверка</th>
-          <th>Отклик</th>
-          <th>Uptime 24ч</th>
-          <th class="d-none d-lg-table-cell">Uptime 7д</th>
+          <th>{{ t('dashboard.server') }}</th>
+          <th class="d-none d-md-table-cell">{{ t('dashboard.last_check') }}</th>
+          <th>{{ t('dashboard.response') }}</th>
+          <th>{{ t('dashboard.uptime_24h') }}</th>
+          <th class="d-none d-lg-table-cell">{{ t('dashboard.uptime_7d') }}</th>
           <th></th>
         </tr>
       </thead>
@@ -49,11 +50,11 @@
         <tr>
           <td>
             {% if s.last_status == 'up' %}
-            <span class="status-dot status-up" title="Up"></span>
+            <span class="status-dot status-up" title="{{ t('status.up') }}"></span>
             {% elif s.last_status == 'down' %}
-            <span class="status-dot status-down" title="Down"></span>
+            <span class="status-dot status-down" title="{{ t('status.down') }}"></span>
             {% else %}
-            <span class="status-dot status-unknown" title="Unknown"></span>
+            <span class="status-dot status-unknown" title="{{ t('status.unknown') }}"></span>
             {% endif %}
           </td>
           <td>
@@ -77,11 +78,12 @@
           </td>
           <td class="text-end text-nowrap">
             <form method="post" action="/servers/{{ s.id }}/check-now" class="d-inline">
-              <button type="submit" class="btn btn-sm btn-outline-primary" title="Проверить сейчас">↻</button>
+              <button type="submit" class="btn btn-sm btn-outline-primary" title="{{ t('dashboard.check_now') }}">↻</button>
             </form>
             <a href="/servers/{{ s.id }}/edit" class="btn btn-sm btn-outline-secondary">✎</a>
             <form method="post" action="/servers/{{ s.id }}/delete" class="d-inline"
-                  onsubmit="return confirm('Удалить сервер {{ s.name }}?');">
+                  data-confirm="{{ t('dashboard.delete_confirm', name=s.name) }}"
+                  onsubmit="return confirm(this.dataset.confirm);">
               <button type="submit" class="btn btn-sm btn-outline-danger">×</button>
             </form>
           </td>

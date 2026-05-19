@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from app.bootstrap import seed_defaults
 from app.config import LOG_LEVEL, SCHEDULER_ENABLED
 from app.database import close_db, init_db
-from app.routers import auth, dashboard, servers, settings
+from app.routers import auth, dashboard, i18n, servers, settings
 from app.services.scheduler import reload_all_schedules, start_scheduler, stop_scheduler
 
 logging.basicConfig(
@@ -43,6 +43,7 @@ app = FastAPI(
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
+app.include_router(i18n.router)
 app.include_router(auth.router)
 app.include_router(dashboard.router)
 app.include_router(servers.router)

@@ -1,24 +1,28 @@
 {% extends "base.html" %}
-{% block title %}Вход — Uptime Monitor{% endblock %}
+{% block title %}{{ t('login.title') }} — {{ t('app.name') }}{% endblock %}
+{% block footer %}{% endblock %}
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-md-5 col-lg-4">
+    <div class="d-flex justify-content-end mb-2">
+      {% include "_lang_switcher.html" %}
+    </div>
     <div class="card shadow-sm">
       <div class="card-body p-4">
-        <h1 class="h4 mb-4 text-center">Uptime Monitor</h1>
+        <h1 class="h4 mb-4 text-center">{{ t('app.name') }}</h1>
         {% if error %}
         <div class="alert alert-danger py-2">{{ error }}</div>
         {% endif %}
         <form method="post" action="/login">
           <div class="mb-3">
-            <label class="form-label" for="username">Логин</label>
+            <label class="form-label" for="username">{{ t('login.username') }}</label>
             <input type="text" class="form-control" id="username" name="username" required autofocus>
           </div>
           <div class="mb-3">
-            <label class="form-label" for="password">Пароль</label>
+            <label class="form-label" for="password">{{ t('login.password') }}</label>
             <input type="password" class="form-control" id="password" name="password" required>
           </div>
-          <button type="submit" class="btn btn-primary w-100">Войти</button>
+          <button type="submit" class="btn btn-primary w-100">{{ t('login.submit') }}</button>
         </form>
       </div>
     </div>

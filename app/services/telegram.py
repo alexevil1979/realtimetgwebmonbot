@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 
+from app.i18n import normalize_lang, translate
 from app.models import AppSetting, Server
 
 logger = logging.getLogger(__name__)
@@ -12,6 +13,11 @@ _last_notify: dict[int, datetime] = {}
 
 async def _get_settings() -> dict[str, str]:
     return await AppSetting.get_all()
+
+
+async def _alert_lang() -> str:
+    settings = await _get_settings()
+    return normalize_lang(settings.get("ui_language"))
 
 
 def _aware(dt: datetime | None) -> datetime | None:
@@ -26,7 +32,8 @@ async def send_telegram_raw(token: str, chat_id: str, text: str) -> tuple[bool, 
     token = token.strip()
     chat_id = chat_id.strip()
     if not token or not chat_id:
-        return False, "Укажите Bot Token и Chat ID"
+        lang = await _alert_lang()
+        return False, translate("telegram.missing_credentials", lang)
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     try:
@@ -43,7 +50,8 @@ async def send_telegram_raw(token: str, chat_id: str, text: str) -> tuple[bool, 
                     pass
                 logger.warning("Telegram API error: %s %s", resp.status_code, detail)
                 return False, str(detail)
-            return True, "Сообщение отправлено в Telegram"
+            lang = await _alert_lang()
+            return True, translate("telegram.sent", lang)
     except Exception as exc:
         logger.exception("Failed to send Telegram message: %s", exc)
         return False, str(exc)
@@ -71,11 +79,14 @@ async def _send_down_alert(
     error_message: str | None,
     down_minutes: int,
 ) -> None:
-    text = (
-        f"🔴 <b>DOWN</b>: {server.name}\n"
-        f"URL: {server.url}\n"
-        f"Недоступен более {down_minutes} мин\n"
-        f"{error_message or 'Проверка не прошла'}"
+    lang = await _alert_lang()
+    text = translate(
+        "telegram.down",
+        lang,
+        name=server.name,
+        url=server.url,
+        minutes=down_minutes,
+        error=error_message or "—",
     )
     if await send_telegram(text):
         _last_notify[server.id] = datetime.now(timezone.utc)
@@ -83,12 +94,15 @@ async def _send_down_alert(
 
 
 async def _send_up_alert(server: Server) -> None:
+    lang = await _alert_lang()
     ms = server.last_response_ms
     ms_str = f"{ms} ms" if ms is not None else "—"
-    text = (
-        f"🟢 <b>UP</b>: {server.name}\n"
-        f"URL: {server.url}\n"
-        f"Снова доступен, отклик: {ms_str}"
+    text = translate(
+        "telegram.up",
+        lang,
+        name=server.name,
+        url=server.url,
+        response=ms_str,
     )
     if await send_telegram(text):
         _last_notify[server.id] = datetime.now(timezone.utc)

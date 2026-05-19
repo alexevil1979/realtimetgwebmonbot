@@ -2,17 +2,16 @@ import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
 
 from app.dependencies import login_redirect, optional_user
 from app.models import Server, User
 from app.services.checker import calc_uptime
+from app.templating import template_context, templates
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["dashboard"])
-templates = Jinja2Templates(directory="app/templates")
 
 
 def _format_dt(dt: datetime | None) -> str:
@@ -48,9 +47,5 @@ async def dashboard(
     return templates.TemplateResponse(
         request,
         "dashboard.html",
-        {
-            "request": request,
-            "user": user,
-            "items": items,
-        },
+        template_context(request, user=user, items=items),
     )

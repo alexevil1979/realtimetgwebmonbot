@@ -2,23 +2,17 @@ import logging
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 
 from app.dependencies import login_redirect, optional_user
+from app.i18n import get_locale, translate
 from app.models import Server, User
 from app.services.checker import run_check
 from app.services.scheduler import schedule_server, unschedule_server
+from app.templating import template_context, templates
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/servers", tags=["servers"])
-templates = Jinja2Templates(directory="app/templates")
-
-
-def _require(user: User | None) -> User | RedirectResponse:
-    if not user:
-        return login_redirect()
-    return user
 
 
 @router.get("/new", response_class=HTMLResponse)
@@ -28,7 +22,7 @@ async def server_new(request: Request, user: User | None = Depends(optional_user
     return templates.TemplateResponse(
         request,
         "server_form.html",
-        {"request": request, "user": user, "server": None, "error": None},
+        template_context(request, user=user, server=None, error=None),
     )
 
 
@@ -46,7 +40,7 @@ async def server_edit(
     return templates.TemplateResponse(
         request,
         "server_form.html",
-        {"request": request, "user": user, "server": server, "error": None},
+        template_context(request, user=user, server=server, error=None),
     )
 
 
@@ -63,17 +57,18 @@ async def server_create(
     if not user:
         return login_redirect()
 
+    lang = get_locale(request)
     url = url.strip()
     if not url.startswith(("http://", "https://")):
         return templates.TemplateResponse(
             request,
             "server_form.html",
-            {
-                "request": request,
-                "user": user,
-                "server": None,
-                "error": "URL должен начинаться с http:// или https://",
-            },
+            template_context(
+                request,
+                user=user,
+                server=None,
+                error=translate("error.url_scheme", lang),
+            ),
             status_code=400,
         )
 
@@ -104,6 +99,7 @@ async def server_update(
     if not user:
         return login_redirect()
 
+    lang = get_locale(request)
     server = await Server.filter(id=server_id).first()
     if not server:
         return RedirectResponse("/", status_code=303)
@@ -113,12 +109,12 @@ async def server_update(
         return templates.TemplateResponse(
             request,
             "server_form.html",
-            {
-                "request": request,
-                "user": user,
-                "server": server,
-                "error": "URL должен начинаться с http:// или https://",
-            },
+            template_context(
+                request,
+                user=user,
+                server=server,
+                error=translate("error.url_scheme", lang),
+            ),
             status_code=400,
         )
 
